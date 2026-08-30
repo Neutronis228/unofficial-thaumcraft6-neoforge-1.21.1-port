@@ -102,8 +102,8 @@ neoForge {
             def infernalFurnaceBehaviorAuditPath = providers.gradleProperty('tcInfernalFurnaceBehaviorAuditPath').orNull ?: System.getProperty('tc.infernalFurnaceBehaviorAuditPath')
             def alchemyAutomationDeviceAuditEnabled = providers.gradleProperty('tcAlchemyAutomationDeviceAudit').orNull ?: System.getProperty('tc.alchemyAutomationDeviceAudit')
             def alchemyAutomationDeviceAuditPath = providers.gradleProperty('tcAlchemyAutomationDeviceAuditPath').orNull ?: System.getProperty('tc.alchemyAutomationDeviceAuditPath')
-            def brainJarBehaviorAuditEnabled = providers.gradleProperty('tcBrainJarBehaviorAudit').orNull ?: System.getProperty('tcBrainJarBehaviorAudit')
-            def brainJarBehaviorAuditPath = providers.gradleProperty('tcBrainJarBehaviorAuditPath').orNull ?: System.getProperty('tcBrainJarBehaviorAuditPath')
+            def brainJarBehaviorAuditEnabled = providers.gradleProperty('tcBrainJarBehaviorAudit').orNull ?: System.getProperty('tc.brainJarBehaviorAudit')
+            def brainJarBehaviorAuditPath = providers.gradleProperty('tcBrainJarBehaviorAuditPath').orNull ?: System.getProperty('tc.brainJarBehaviorAuditPath')
             def standaloneDeviceBlockerAuditEnabled = providers.gradleProperty('tcStandaloneDeviceBlockerAudit').orNull ?: System.getProperty('tc.standaloneDeviceBlockerAudit')
             def standaloneDeviceBlockerAuditPath = providers.gradleProperty('tcStandaloneDeviceBlockerAuditPath').orNull ?: System.getProperty('tc.standaloneDeviceBlockerAuditPath')
             def entityFoundationAuditEnabled = providers.gradleProperty('tcEntityFoundationAudit').orNull ?: System.getProperty('tc.entityFoundationAudit')
@@ -432,7 +432,7 @@ tasks.register('generateUkrainianLang') {
     doLast {
         def outFile = new File(ukLangOutputDir, 'assets/thaumcraft/lang/uk_ua.json')
         outFile.parentFile.mkdirs()
-        new java.util.zip.GGIPInputStream(new java.io.FileInputStream(ukLangCompressed)).withCloseable { input ->
+        new java.util.zip.GZIPInputStream(new java.io.FileInputStream(ukLangCompressed)).withCloseable { input ->
             new java.io.FileOutputStream(outFile).withCloseable { output ->
                 input.transferTo(output)
             }
