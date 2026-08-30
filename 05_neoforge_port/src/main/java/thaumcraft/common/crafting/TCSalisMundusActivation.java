@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -17,6 +18,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.common.blocks.devices.TCInfernalFurnaceBlock;
 import thaumcraft.common.registry.TCBlocks;
+import thaumcraft.common.registry.TCItems;
+import thaumcraft.common.research.TCResearchDiscoveryEvents;
 import thaumcraft.common.research.TCPlayerKnowledgeStore;
 import thaumcraft.common.research.TCResearchManager;
 
@@ -54,6 +57,32 @@ public final class TCSalisMundusActivation {
 
     public static Result tryActivate(UseOnContext context) {
         Level level = context.getLevel();
+
+        // Original TC6 bootstrap: after the Strange Dreams discovery, Salis Mundus used on a
+        // bookshelf consumes the shelf and produces the Thaumonomicon.
+        if (level.getBlockState(context.getClickedPos()).is(Blocks.BOOKSHELF)) {
+            if (context.getPlayer() instanceof ServerPlayer player
+                    && !TCResearchManager.knowsResearchStrict(
+                    TCPlayerKnowledgeStore.get(player),
+                    TCResearchDiscoveryEvents.GOT_DREAM
+            )) {
+                return Result.blocked("missing_research:" + TCResearchDiscoveryEvents.GOT_DREAM);
+            }
+
+            if (!level.isClientSide) {
+                ServerLevel serverLevel = (ServerLevel) level;
+                BlockPos pos = context.getClickedPos();
+                serverLevel.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+                Block.popResource(serverLevel, pos, new ItemStack(TCItems.THAUMONOMICON.get()));
+                serverLevel.playSound(null, pos, SoundEvents.ENCHANTMENT_TABLE_USE,
+                        SoundSource.BLOCKS, 0.9F, 1.15F);
+                serverLevel.sendParticles(ParticleTypes.ENCHANT,
+                        pos.getX() + 0.5D, pos.getY() + 0.65D, pos.getZ() + 0.5D,
+                        32, 0.7D, 0.7D, 0.7D, 0.03D);
+            }
+            return Result.activated("thaumonomicon");
+        }
+
         Optional<InfernalFurnacePlacement> placement = findInfernalFurnacePlacement(level, context.getClickedPos());
         if (placement.isEmpty()) {
             return Result.none();

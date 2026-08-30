@@ -65,6 +65,7 @@ import thaumcraft.common.registry.TCCreativeTabs;
 import thaumcraft.common.registry.TCDataComponents;
 import thaumcraft.common.registry.TCEntityTypes;
 import thaumcraft.common.registry.TCFluids;
+import thaumcraft.common.registry.TCFeatures;
 import thaumcraft.common.registry.TCItems;
 import thaumcraft.common.registry.TCMenus;
 import thaumcraft.common.registry.TCMobEffects;
@@ -110,6 +111,7 @@ public final class Thaumcraft {
         TCFluids.FLUID_TYPES.register(modEventBus);
         TCFluids.FLUIDS.register(modEventBus);
         TCBlocks.BLOCKS.register(modEventBus);
+        TCFeatures.FEATURES.register(modEventBus);
         TCBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         TCMobEffects.MOB_EFFECTS.register(modEventBus);
         TCEntityTypes.ENTITY_TYPES.register(modEventBus);
@@ -208,6 +210,7 @@ public final class Thaumcraft {
         NeoForge.EVENT_BUS.addListener(TCWarpCraftingEvents::onItemCrafted);
         NeoForge.EVENT_BUS.addListener(TCResearchManager::onItemCrafted);
         NeoForge.EVENT_BUS.addListener(TCResearchDiscoveryEvents::onItemPickup);
+        NeoForge.EVENT_BUS.addListener(TCResearchDiscoveryEvents::onPlayerWakeUp);
         NeoForge.EVENT_BUS.addListener(TCBathSaltsEvents::onItemExpire);
         TCAspectAssignments.bootstrap();
         TCResearchManager.bootstrap();
