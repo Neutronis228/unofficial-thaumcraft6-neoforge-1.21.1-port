@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "thaumcraft:bauble_charm",
+    "thaumcraft:verdant_heart",
+    "thaumcraft:verdant_heart_life",
+    "thaumcraft:verdant_heart_sustain"
+  ]
+}

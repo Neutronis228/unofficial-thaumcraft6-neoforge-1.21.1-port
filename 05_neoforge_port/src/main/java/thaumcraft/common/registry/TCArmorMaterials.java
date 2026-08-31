@@ -49,6 +49,34 @@ public final class TCArmorMaterials {
             )
     );
 
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> THAUMIUM = ARMOR_MATERIALS.register(
+            "thaumium",
+            () -> material(
+                    25,
+                    defense(2, 5, 6, 2),
+                    25,
+                    SoundEvents.ARMOR_EQUIP_IRON,
+                    () -> Ingredient.of(TCItems.THAUMIUM_INGOT.get()),
+                    List.of(layer("thaumium")),
+                    1.0F,
+                    0.0F
+            )
+    );
+
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> VOID = ARMOR_MATERIALS.register(
+            "void",
+            () -> material(
+                    10,
+                    defense(3, 6, 8, 3),
+                    10,
+                    SoundEvents.ARMOR_EQUIP_CHAIN,
+                    () -> Ingredient.of(TCItems.VOID_INGOT.get()),
+                    List.of(layer("void")),
+                    1.0F,
+                    0.0F
+            )
+    );
+
     public static final DeferredHolder<ArmorMaterial, ArmorMaterial> VOID_ROBE = ARMOR_MATERIALS.register(
             "void_robe",
             () -> material(
