@@ -25,6 +25,14 @@ sourceSets.main.resources {
 }
 
 repositories {
+    maven {
+        name = "Sleeping Town"
+        url = "https://repo.sleeping.town/"
+    }
+}
+
+dependencies {
+    compileOnly "dev.emi:emi-neoforge:1.1.24+1.21.1:api"
 }
 
 neoForge {

@@ -1259,5 +1259,8 @@
   "tile.researchtable.nopaper.0": "You have run out of paper!",
   "workbench.available": "available",
   "workbench.cost": "vis",
-  "workbench.discount": "discount"
+  "workbench.discount": "discount",
+  "emi.category.thaumcraft.arcane": "Arcane Workbench",
+  "emi.category.thaumcraft.crucible": "Crucible Alchemy",
+  "emi.category.thaumcraft.infusion": "Infusion Crafting"
 }

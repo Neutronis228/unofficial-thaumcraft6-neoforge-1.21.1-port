@@ -1259,5 +1259,8 @@
   "tile.researchtable.nopaper.0": "У вас закінчився папір!",
   "workbench.available": "доступно",
   "workbench.cost": "віс",
-  "workbench.discount": "знижка"
+  "workbench.discount": "знижка",
+  "emi.category.thaumcraft.arcane": "Магічний верстак",
+  "emi.category.thaumcraft.crucible": "Алхімія в тиглі",
+  "emi.category.thaumcraft.infusion": "Інфузійне створення"
 }
