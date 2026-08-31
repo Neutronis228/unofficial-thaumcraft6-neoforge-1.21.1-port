@@ -1,6 +1,8 @@
 package thaumcraft.common.crafting;
 
 import java.util.Optional;
+import thaumcraft.api.crafting.IDustTrigger;
+import thaumcraft.api.crafting.SalisMundusTriggerRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -18,6 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.common.blocks.devices.TCInfernalFurnaceBlock;
+import thaumcraft.common.blocks.crafting.TCThaumatoriumBlock;
 import thaumcraft.common.crafting.infusion.TCInfusionStructureProfile;
 import thaumcraft.common.registry.TCBlocks;
 import thaumcraft.common.registry.TCItems;
@@ -35,6 +38,7 @@ public final class TCSalisMundusActivation {
     public static final String INFUSION_RESEARCH = "INFUSION";
     public static final String ANCIENT_INFUSION_RESEARCH = "INFUSIONANCIENT";
     public static final String ELDRITCH_INFUSION_RESEARCH = "INFUSIONELDRITCH";
+    public static final String THAUMATORIUM_RESEARCH = "THAUMATORIUM";
 
     private static final Direction[] LEGACY_HORIZONTAL_ORDER = {
             Direction.SOUTH,
@@ -132,22 +136,86 @@ public final class TCSalisMundusActivation {
         }
 
         Optional<InfernalFurnacePlacement> placement = findInfernalFurnacePlacement(level, clickedPos);
-        if (placement.isEmpty()) {
-            return Result.none();
+        if (placement.isPresent()) {
+            if (context.getPlayer() instanceof ServerPlayer player
+                    && !TCResearchManager.knowsResearchStrict(
+                    TCPlayerKnowledgeStore.get(player),
+                    INFERNAL_FURNACE_RESEARCH
+            )) {
+                return Result.blocked("missing_research:" + INFERNAL_FURNACE_RESEARCH);
+            }
+
+            if (!level.isClientSide) {
+                applyInfernalFurnacePlacement((ServerLevel) level, placement.get());
+            }
+            return Result.activated("infernal_furnace");
         }
 
-        if (context.getPlayer() instanceof ServerPlayer player
-                && !TCResearchManager.knowsResearchStrict(
-                TCPlayerKnowledgeStore.get(player),
-                INFERNAL_FURNACE_RESEARCH
-        )) {
-            return Result.blocked("missing_research:" + INFERNAL_FURNACE_RESEARCH);
+        Optional<BlockPos> thaumatorium = findThaumatoriumBase(level, clickedPos);
+        if (thaumatorium.isPresent()) {
+            if (context.getPlayer() instanceof ServerPlayer player
+                    && !TCResearchManager.knowsResearchStrict(
+                    TCPlayerKnowledgeStore.get(player),
+                    THAUMATORIUM_RESEARCH
+            )) {
+                return Result.blocked("missing_research:" + THAUMATORIUM_RESEARCH);
+            }
+            if (!level.isClientSide) {
+                Direction facing = clickedFacing(context);
+                applyThaumatoriumPlacement((ServerLevel) level, thaumatorium.get(), facing);
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    TCResearchManager.markCraftedResearchReferences(player, new ItemStack(TCItems.THAUMATORIUM.get()));
+                }
+            }
+            return Result.activated("thaumatorium");
         }
 
-        if (!level.isClientSide) {
-            applyInfernalFurnacePlacement((ServerLevel) level, placement.get());
+        IDustTrigger.DustTriggerResult addonResult = SalisMundusTriggerRegistry.tryActivate(context);
+        if (addonResult.matched()) {
+            return addonResult.activated()
+                    ? Result.activated(addonResult.key())
+                    : Result.blocked(addonResult.reason());
         }
-        return Result.activated("infernal_furnace");
+        return Result.none();
+    }
+
+    private static Optional<BlockPos> findThaumatoriumBase(Level level, BlockPos clickedPos) {
+        for (int offset = -2; offset <= 0; offset++) {
+            BlockPos cruciblePos = clickedPos.offset(0, offset, 0);
+            if (level.getBlockState(cruciblePos).is(TCBlocks.CRUCIBLE.get())
+                    && level.getBlockState(cruciblePos.above()).is(TCBlocks.METAL_ALCHEMICAL.get())
+                    && level.getBlockState(cruciblePos.above(2)).is(TCBlocks.METAL_ALCHEMICAL.get())) {
+                return Optional.of(cruciblePos);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Direction clickedFacing(UseOnContext context) {
+        Direction clickedFace = context.getClickedFace();
+        if (clickedFace.getAxis().isHorizontal()) {
+            return clickedFace;
+        }
+        return context.getPlayer() == null ? Direction.NORTH : context.getPlayer().getDirection().getOpposite();
+    }
+
+    private static void applyThaumatoriumPlacement(ServerLevel level, BlockPos cruciblePos, Direction facing) {
+        BlockPos bottom = cruciblePos.above();
+        BlockPos top = cruciblePos.above(2);
+        level.setBlock(
+                bottom,
+                TCBlocks.THAUMATORIUM.get().defaultBlockState().setValue(TCThaumatoriumBlock.FACING, facing),
+                Block.UPDATE_ALL
+        );
+        level.setBlock(
+                top,
+                TCBlocks.THAUMATORIUM_TOP.get().defaultBlockState().setValue(TCThaumatoriumBlock.FACING, facing),
+                Block.UPDATE_ALL
+        );
+        emitDustEffects(level, bottom, 42, 0.85D);
+        level.sendParticles(ParticleTypes.ENCHANT,
+                top.getX() + 0.5D, top.getY() + 0.5D, top.getZ() + 0.5D,
+                28, 0.6D, 0.8D, 0.6D, 0.025D);
     }
 
     private static Result trySimpleTransformation(
