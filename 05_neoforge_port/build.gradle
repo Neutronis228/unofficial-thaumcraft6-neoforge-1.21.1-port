@@ -25,6 +25,14 @@ sourceSets.main.resources {
 }
 
 repositories {
+    maven {
+        name = "Sleeping Town"
+        url = "https://repo.sleeping.town/"
+    }
+}
+
+dependencies {
+    compileOnly "dev.emi:emi-neoforge:1.1.24+1.21.1:api"
 }
 
 neoForge {
@@ -418,29 +426,4 @@ idea {
         downloadSources = true
         downloadJavadoc = true
     }
-}
-
-// Ukrainian localization is stored compressed in source control to keep the
-// legacy 1.12-era language corpus manageable. Minecraft still receives a
-// regular assets/thaumcraft/lang/uk_ua.json inside the built JAR.
-def ukLangCompressed = file('src/main/translation/uk_ua.json.gz')
-def ukLangOutputDir = file("${layout.buildDirectory.get().asFile}/generated/uk-lang")
-
-tasks.register('generateUkrainianLang') {
-    inputs.file(ukLangCompressed)
-    outputs.file(new File(ukLangOutputDir, 'assets/thaumcraft/lang/uk_ua.json'))
-    doLast {
-        def outFile = new File(ukLangOutputDir, 'assets/thaumcraft/lang/uk_ua.json')
-        outFile.parentFile.mkdirs()
-        new java.util.zip.GZIPInputStream(new java.io.FileInputStream(ukLangCompressed)).withCloseable { input ->
-            new java.io.FileOutputStream(outFile).withCloseable { output ->
-                input.transferTo(output)
-            }
-        }
-    }
-}
-
-sourceSets.main.resources.srcDir ukLangOutputDir
-tasks.named('processResources').configure {
-    dependsOn tasks.named('generateUkrainianLang')
 }
