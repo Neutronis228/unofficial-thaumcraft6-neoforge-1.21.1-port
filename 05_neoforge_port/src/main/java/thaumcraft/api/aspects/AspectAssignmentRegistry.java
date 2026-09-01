@@ -36,6 +36,11 @@ public final class AspectAssignmentRegistry {
         ITEMS.remove(itemId);
     }
 
+    public static AspectList get(ResourceLocation itemId) {
+        AspectList aspects = ITEMS.get(itemId);
+        return aspects == null ? null : aspects.copy();
+    }
+
     public static void removeTag(ResourceLocation tagId) {
         TAGS.remove(TagKey.create(Registries.ITEM, tagId));
     }
