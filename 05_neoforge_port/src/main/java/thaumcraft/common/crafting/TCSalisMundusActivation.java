@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.common.blocks.devices.TCInfernalFurnaceBlock;
+import thaumcraft.common.blocks.crafting.TCGolemBuilderBlock;
 import thaumcraft.common.blocks.crafting.TCThaumatoriumBlock;
 import thaumcraft.common.crafting.infusion.TCInfusionStructureProfile;
 import thaumcraft.common.registry.TCBlocks;
@@ -39,6 +40,7 @@ public final class TCSalisMundusActivation {
     public static final String ANCIENT_INFUSION_RESEARCH = "INFUSIONANCIENT";
     public static final String ELDRITCH_INFUSION_RESEARCH = "INFUSIONELDRITCH";
     public static final String THAUMATORIUM_RESEARCH = "THAUMATORIUM";
+    public static final String GOLEM_PRESS_RESEARCH = "MINDCLOCKWORK";
 
     private static final Direction[] LEGACY_HORIZONTAL_ORDER = {
             Direction.SOUTH,
@@ -168,6 +170,24 @@ public final class TCSalisMundusActivation {
                 }
             }
             return Result.activated("thaumatorium");
+        }
+
+        Optional<GolemPressPlacement> golemPress = findGolemPressPlacement(level, clickedPos);
+        if (golemPress.isPresent()) {
+            if (context.getPlayer() instanceof ServerPlayer player
+                    && !TCResearchManager.knowsResearchStrict(
+                    TCPlayerKnowledgeStore.get(player),
+                    GOLEM_PRESS_RESEARCH
+            )) {
+                return Result.blocked("missing_research:" + GOLEM_PRESS_RESEARCH);
+            }
+            if (!level.isClientSide) {
+                applyGolemPressPlacement((ServerLevel) level, golemPress.get());
+                if (context.getPlayer() instanceof ServerPlayer player) {
+                    TCResearchManager.markCraftedResearchReferences(player, new ItemStack(TCItems.GOLEM_BUILDER.get()));
+                }
+            }
+            return Result.activated("golem_press");
         }
 
         IDustTrigger.DustTriggerResult addonResult = SalisMundusTriggerRegistry.tryActivate(context);
@@ -327,6 +347,69 @@ public final class TCSalisMundusActivation {
                 count, spread, spread, spread, 0.03D);
     }
 
+    /**
+     * TC6 ConfigRecipes used a two-by-two, two-high blueprint for the golem press.
+     * The lower layer is cauldron/anvil/piston/table-stone; an iron-bars block sits
+     * directly above the piston.  Only the piston becomes the controller, while the
+     * other blocks remain visible pieces of the finished machine just as in the
+     * original multiblock.
+     */
+    private static Optional<GolemPressPlacement> findGolemPressPlacement(Level level, BlockPos clickedPos) {
+        for (int y = -1; y <= 0; y++) {
+            for (int x = -1; x <= 0; x++) {
+                for (int z = -1; z <= 0; z++) {
+                    BlockPos origin = clickedPos.offset(x, y, z);
+                    for (Direction facing : LEGACY_HORIZONTAL_ORDER) {
+                        if (fitsGolemPress(level, origin, facing)) {
+                            return Optional.of(new GolemPressPlacement(origin, facing));
+                        }
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean fitsGolemPress(BlockGetter level, BlockPos origin, Direction facing) {
+        BlockPos cauldron = golemPressPos(origin, 0, 0, 0, facing);
+        BlockPos anvil = golemPressPos(origin, 0, 0, 1, facing);
+        BlockPos piston = golemPressPos(origin, 1, 0, 0, facing);
+        BlockPos table = golemPressPos(origin, 1, 0, 1, facing);
+        BlockPos bars = golemPressPos(origin, 1, 1, 0, facing);
+        return level.getBlockState(cauldron).is(Blocks.CAULDRON)
+                && level.getBlockState(anvil).is(Blocks.ANVIL)
+                && level.getBlockState(piston).is(Blocks.PISTON)
+                && level.getBlockState(piston).hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING)
+                && level.getBlockState(piston).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING) == Direction.UP
+                && level.getBlockState(table).is(TCBlocks.TABLE_STONE.get())
+                && level.getBlockState(bars).is(Blocks.IRON_BARS);
+    }
+
+    private static BlockPos golemPressPos(BlockPos origin, int localX, int localY, int localZ, Direction facing) {
+        return switch (facing) {
+            case SOUTH -> origin.offset(localX, localY, localZ);
+            case WEST -> origin.offset(-localZ, localY, localX);
+            case NORTH -> origin.offset(-localX, localY, -localZ);
+            case EAST -> origin.offset(localZ, localY, -localX);
+            default -> origin.offset(localX, localY, localZ);
+        };
+    }
+
+    private static void applyGolemPressPlacement(ServerLevel level, GolemPressPlacement placement) {
+        BlockPos piston = golemPressPos(placement.origin(), 1, 0, 0, placement.facing());
+        level.setBlock(
+                piston,
+                TCBlocks.GOLEM_BUILDER.get().defaultBlockState()
+                        .setValue(TCGolemBuilderBlock.FACING, placement.facing().getOpposite()),
+                Block.UPDATE_ALL
+        );
+        emitDustEffects(level, piston, 40, 0.9D);
+        BlockPos bars = piston.above();
+        level.sendParticles(ParticleTypes.ENCHANT,
+                bars.getX() + 0.5D, bars.getY() + 0.35D, bars.getZ() + 0.5D,
+                20, 0.35D, 0.25D, 0.35D, 0.02D);
+    }
+
     public static Optional<InfernalFurnacePlacement> findInfernalFurnacePlacement(BlockGetter level, BlockPos clickedPos) {
         for (int yy = -3; yy <= 0; yy++) {
             for (int xx = -3; xx <= 0; xx++) {
@@ -458,6 +541,9 @@ public final class TCSalisMundusActivation {
     }
 
     public record InfernalFurnacePlacement(BlockPos origin, Direction facing) {
+    }
+
+    private record GolemPressPlacement(BlockPos origin, Direction facing) {
     }
 
     private enum Corner {
