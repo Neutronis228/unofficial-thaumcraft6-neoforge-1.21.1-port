@@ -14,6 +14,7 @@ import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.common.DeferredSpawnEggItem;
 import thaumcraft.Thaumcraft;
 import thaumcraft.common.items.ItemAspectVariant;
 import thaumcraft.common.items.ItemLegacyPlaceholder;
@@ -25,6 +26,7 @@ import thaumcraft.common.items.TCWardedJarBlockItem;
 import thaumcraft.common.items.armor.ItemGoggles;
 import thaumcraft.common.items.armor.ItemRobeArmor;
 import thaumcraft.common.items.armor.ItemThaumiumArmor;
+import thaumcraft.common.items.armor.ItemTravellerBoots;
 import thaumcraft.common.items.armor.ItemVoidArmor;
 import thaumcraft.common.items.armor.ItemVoidRobeArmor;
 import thaumcraft.common.items.components.TCLegacyItemComponent;
@@ -269,7 +271,7 @@ public final class TCItems {
     public static final Supplier<BlockItem> JAR_BRAIN = ITEMS.register("jar_brain", () -> new TCBrainJarBlockItem(TCBlocks.JAR_BRAIN.get(), new Item.Properties()));
     public static final Supplier<Item> SEAL_BUTCHER = simpleItem("seal_butcher");
     public static final Supplier<Item> SEAL_HARVEST = simpleItem("seal_harvest");
-    public static final Supplier<Item> TRAVELLER_BOOTS = simpleItem("traveller_boots");
+    public static final Supplier<Item> TRAVELLER_BOOTS = ITEMS.register("traveller_boots", ItemTravellerBoots::new);
     public static final Supplier<Item> CLOUD_RING = simpleItem("cloud_ring");
     public static final Supplier<Item> CHARM_UNDYING = simpleItem("charm_undying");
     public static final Supplier<Item> ELEMENTAL_AXE = simpleItem("elemental_axe");
@@ -297,6 +299,29 @@ public final class TCItems {
     public static final Supplier<BlockItem> ANCIENT_PEDESTAL = blockItem("ancient_pedestal", TCBlocks.ANCIENT_PEDESTAL);
     public static final Supplier<BlockItem> ARCANE_PEDESTAL = blockItem("arcane_pedestal", TCBlocks.ARCANE_PEDESTAL);
     public static final Supplier<Item> CAUSALITY_COLLAPSER = ITEMS.register("causality_collapser", ItemCausalityCollapser::new);
+
+    // TC6 exposed spawn eggs for these mobs. Keeping the original two legacy
+    // colors makes them easy to identify in the creative inventory and restores
+    // the vanilla /give and dispenser behavior through DeferredSpawnEggItem.
+    public static final Supplier<Item> CULTIST_LEADER_SPAWN_EGG = spawnEgg("cultist_leader_spawn_egg", TCEntityTypes.CULTIST_LEADER, 6842578, 9438728);
+    public static final Supplier<Item> TAINTACLE_GIANT_SPAWN_EGG = spawnEgg("taintacle_giant_spawn_egg", TCEntityTypes.TAINTACLE_GIANT, 6842578, 10618530);
+    public static final Supplier<Item> BRAINY_ZOMBIE_SPAWN_EGG = spawnEgg("brainy_zombie_spawn_egg", TCEntityTypes.BRAINY_ZOMBIE, -16129, -16744448);
+    public static final Supplier<Item> GIANT_BRAINY_ZOMBIE_SPAWN_EGG = spawnEgg("giant_brainy_zombie_spawn_egg", TCEntityTypes.GIANT_BRAINY_ZOMBIE, -16129, -16760832);
+    public static final Supplier<Item> WISP_SPAWN_EGG = spawnEgg("wisp_spawn_egg", TCEntityTypes.WISP, -16129, -1);
+    public static final Supplier<Item> FIREBAT_SPAWN_EGG = spawnEgg("firebat_spawn_egg", TCEntityTypes.FIREBAT, -16129, -806354944);
+    public static final Supplier<Item> PECH_SPAWN_EGG = spawnEgg("pech_spawn_egg", TCEntityTypes.PECH, -16129, -12582848);
+    public static final Supplier<Item> MIND_SPIDER_SPAWN_EGG = spawnEgg("mind_spider_spawn_egg", TCEntityTypes.MIND_SPIDER, 4996656, 4473924);
+    public static final Supplier<Item> ELDRITCH_GUARDIAN_SPAWN_EGG = spawnEgg("eldritch_guardian_spawn_egg", TCEntityTypes.ELDRITCH_GUARDIAN, 8421504, 0);
+    public static final Supplier<Item> CULTIST_KNIGHT_SPAWN_EGG = spawnEgg("cultist_knight_spawn_egg", TCEntityTypes.CULTIST_KNIGHT, 9438728, 128);
+    public static final Supplier<Item> CULTIST_CLERIC_SPAWN_EGG = spawnEgg("cultist_cleric_spawn_egg", TCEntityTypes.CULTIST_CLERIC, 9438728, 8388608);
+    public static final Supplier<Item> ELDRITCH_CRAB_SPAWN_EGG = spawnEgg("eldritch_crab_spawn_egg", TCEntityTypes.ELDRITCH_CRAB, 8421504, 5570560);
+    public static final Supplier<Item> INHABITED_ZOMBIE_SPAWN_EGG = spawnEgg("inhabited_zombie_spawn_egg", TCEntityTypes.INHABITED_ZOMBIE, 8421504, 5570560);
+    public static final Supplier<Item> THAUM_SLIME_SPAWN_EGG = spawnEgg("thaum_slime_spawn_egg", TCEntityTypes.THAUM_SLIME, 10618530, -32513);
+    public static final Supplier<Item> TAINT_CRAWLER_SPAWN_EGG = spawnEgg("taint_crawler_spawn_egg", TCEntityTypes.TAINT_CRAWLER, 10618530, 3158064);
+    public static final Supplier<Item> TAINTACLE_SPAWN_EGG = spawnEgg("taintacle_spawn_egg", TCEntityTypes.TAINTACLE, 10618530, 4469572);
+    public static final Supplier<Item> TAINT_SWARM_SPAWN_EGG = spawnEgg("taint_swarm_spawn_egg", TCEntityTypes.TAINT_SWARM, 10618530, 16744576);
+    public static final Supplier<Item> TAINT_SEED_SPAWN_EGG = spawnEgg("taint_seed_spawn_egg", TCEntityTypes.TAINT_SEED, 10618530, 4465237);
+    public static final Supplier<Item> TAINT_SEED_PRIME_SPAWN_EGG = spawnEgg("taint_seed_prime_spawn_egg", TCEntityTypes.TAINT_SEED_PRIME, 10618530, 5583718);
     public static final Supplier<BlockItem> VOID_SIPHON = blockItem("void_siphon", TCBlocks.VOID_SIPHON);
     public static final Supplier<BlockItem> SPA = blockItem("spa", TCBlocks.SPA);
     public static final Supplier<BlockItem> THAUMATORIUM = blockItem("thaumatorium", TCBlocks.THAUMATORIUM);
@@ -505,6 +530,20 @@ public final class TCItems {
 
     private static Supplier<BlockItem> blockItem(String id, Supplier<? extends Block> block) {
         return ITEMS.register(id, () -> new BlockItem(block.get(), legacyBlockItemProperties(id)));
+    }
+
+    private static Supplier<Item> spawnEgg(
+            String id,
+            Supplier<? extends net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob>> entityType,
+            int backgroundColor,
+            int highlightColor
+    ) {
+        return ITEMS.register(id, () -> new DeferredSpawnEggItem(
+                entityType,
+                backgroundColor,
+                highlightColor,
+                new Item.Properties()
+        ));
     }
 
     private static Item.Properties legacyBlockItemProperties(String id) {

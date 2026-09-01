@@ -49,6 +49,20 @@ public final class TCArmorMaterials {
             )
     );
 
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> TRAVELLER = ARMOR_MATERIALS.register(
+            "traveller",
+            () -> material(
+                    25,
+                    defense(1, 2, 3, 1),
+                    25,
+                    SoundEvents.ARMOR_EQUIP_LEATHER,
+                    () -> Ingredient.of(net.minecraft.world.item.Items.LEATHER),
+                    List.of(layer("bootstraveler")),
+                    1.0F,
+                    0.0F
+            )
+    );
+
     public static final DeferredHolder<ArmorMaterial, ArmorMaterial> THAUMIUM = ARMOR_MATERIALS.register(
             "thaumium",
             () -> material(

@@ -130,6 +130,7 @@ public final class Thaumcraft {
             TCBlockEntityRenderers.register(modEventBus);
             TCEntityRenderers.register(modEventBus);
             TCKnowledgeGainHud.register(modEventBus);
+            thaumcraft.client.gui.TCInstrumentHud.register(modEventBus);
             TCItemProperties.register(modEventBus);
             TCClientExtensions.register(modEventBus);
             TCResearchIconRenderer.register(modEventBus);

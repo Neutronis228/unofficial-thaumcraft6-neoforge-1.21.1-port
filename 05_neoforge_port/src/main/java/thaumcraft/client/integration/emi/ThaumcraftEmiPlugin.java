@@ -61,15 +61,29 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
         return ingredient == null || ingredient.isEmpty() ? EmiStack.EMPTY : EmiIngredient.of(ingredient);
     }
 
-    private static EmiStack aspectStack(String aspectTag, int amount, boolean crystal) {
+    private static EmiStack aspectStack(String aspectTag, int amount) {
         Aspect aspect = Aspect.getAspect(aspectTag);
         if (aspect == null) {
             return EmiStack.EMPTY;
         }
-        ItemStack stack = crystal
-                ? TCAspectVariantStacks.crystal(aspect)
-                : TCAspectVariantStacks.phial(aspect);
+        // Essentia is a recipe resource, not a physical phial. A crystal-backed
+        // EMI ingredient keeps recipe-tree lookup useful while the widgets below
+        // render the actual TC6 aspect glyph and amount.
+        ItemStack stack = TCAspectVariantStacks.crystal(aspect);
         return stack.isEmpty() ? EmiStack.EMPTY : EmiStack.of(stack, amount);
+    }
+
+    private static void addAspectGlyph(WidgetHolder widgets, AspectAmount value, int x, int y) {
+        Aspect aspect = Aspect.getAspect(value.aspectTag());
+        if (aspect == null) {
+            return;
+        }
+        widgets.addTexture(aspect.getImage(), x, y, 16, 16, 0, 0, 16, 16, 16, 16);
+        widgets.addText(Component.literal(Integer.toString(value.amount())), x + 11, y + 9, 0xFFFFFF, true);
+        widgets.addTooltipText(
+                List.of(Component.literal(aspect.getLocalizedDescription() + " × " + value.amount())),
+                x, y, 16, 16
+        );
     }
 
     private static final class ArcaneEmiRecipe extends BasicEmiRecipe {
@@ -89,7 +103,7 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
                 }
             }
             this.crystals = recipe.crystalCosts().stream()
-                    .map(cost -> aspectStack(cost.aspect(), cost.amount(), true))
+                    .map(cost -> aspectStack(cost.aspect(), cost.amount()))
                     .filter(stack -> !stack.isEmpty())
                     .toList();
             inputs.addAll(crystals);
@@ -117,18 +131,22 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
     private static final class CrucibleEmiRecipe extends BasicEmiRecipe {
         private final TCCrucibleRecipe recipe;
         private final EmiIngredient catalyst;
-        private final List<EmiStack> aspects;
+        private final List<AspectAmount> aspectAmounts;
+        private final List<EmiStack> aspectInputs;
 
         private CrucibleEmiRecipe(ResourceLocation id, TCCrucibleRecipe recipe) {
             super(CRUCIBLE, id, 150, 74);
             this.recipe = recipe;
             this.catalyst = ingredient(recipe.catalyst());
-            this.aspects = recipe.aspectCosts().stream()
-                    .map(cost -> aspectStack(cost.aspect(), cost.amount(), false))
+            this.aspectAmounts = recipe.aspectCosts().stream()
+                    .map(cost -> new AspectAmount(cost.aspect(), cost.amount()))
+                    .toList();
+            this.aspectInputs = aspectAmounts.stream()
+                    .map(cost -> aspectStack(cost.aspectTag(), cost.amount()))
                     .filter(stack -> !stack.isEmpty())
                     .toList();
             inputs.add(catalyst);
-            inputs.addAll(aspects);
+            inputs.addAll(aspectInputs);
             outputs.add(EmiStack.of(recipe.result()));
         }
 
@@ -138,8 +156,8 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
             widgets.addSlot(catalyst, 10, 28);
             widgets.addFillingArrow(60, 27, 20);
             widgets.addSlot(outputs.getFirst(), 116, 27).recipeContext(this);
-            for (int index = 0; index < aspects.size() && index < 7; index++) {
-                widgets.addSlot(aspects.get(index), 4 + index * 18, 52);
+            for (int index = 0; index < aspectAmounts.size() && index < 7; index++) {
+                addAspectGlyph(widgets, aspectAmounts.get(index), 5 + index * 20, 53);
             }
         }
     }
@@ -148,20 +166,24 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
         private final TCInfusionRecipe recipe;
         private final EmiIngredient catalyst;
         private final List<EmiIngredient> components;
-        private final List<EmiStack> aspects;
+        private final List<AspectAmount> aspectAmounts;
+        private final List<EmiStack> aspectInputs;
 
         private InfusionEmiRecipe(ResourceLocation id, TCInfusionRecipe recipe) {
-            super(INFUSION, id, 168, 112);
+            super(INFUSION, id, 190, 138);
             this.recipe = recipe;
             this.catalyst = ingredient(recipe.catalyst());
             this.components = recipe.components().stream().map(ThaumcraftEmiPlugin::ingredient).toList();
-            this.aspects = recipe.aspectCosts().stream()
-                    .map(cost -> aspectStack(cost.aspect(), cost.amount(), false))
+            this.aspectAmounts = recipe.aspectCosts().stream()
+                    .map(cost -> new AspectAmount(cost.aspect(), cost.amount()))
+                    .toList();
+            this.aspectInputs = aspectAmounts.stream()
+                    .map(cost -> aspectStack(cost.aspectTag(), cost.amount()))
                     .filter(stack -> !stack.isEmpty())
                     .toList();
             inputs.add(catalyst);
             inputs.addAll(components);
-            inputs.addAll(aspects);
+            inputs.addAll(aspectInputs);
             outputs.add(EmiStack.of(recipe.result()));
         }
 
@@ -171,15 +193,24 @@ public final class ThaumcraftEmiPlugin implements EmiPlugin {
                     Component.literal("Instability " + recipe.instability() + "  •  " + recipe.getResearch()),
                     4, 4, 0x665522, false
             );
-            widgets.addSlot(catalyst, 4, 28);
-            for (int index = 0; index < components.size() && index < 12; index++) {
-                widgets.addSlot(components.get(index), 28 + (index % 6) * 18, 19 + (index / 6) * 18);
+            int centerX = 82;
+            int centerY = 58;
+            widgets.addSlot(catalyst, centerX, centerY);
+            int visibleComponents = Math.min(12, components.size());
+            for (int index = 0; index < visibleComponents; index++) {
+                double angle = -Math.PI / 2.0D + index * (Math.PI * 2.0D / Math.max(1, visibleComponents));
+                int x = centerX + (int) Math.round(Math.cos(angle) * 47.0D);
+                int y = centerY + (int) Math.round(Math.sin(angle) * 38.0D);
+                widgets.addSlot(components.get(index), x, y);
             }
-            widgets.addFillingArrow(112, 58, 20);
-            widgets.addSlot(outputs.getFirst(), 144, 57).recipeContext(this);
-            for (int index = 0; index < aspects.size() && index < 9; index++) {
-                widgets.addSlot(aspects.get(index), 4 + index * 18, 88);
+            widgets.addFillingArrow(125, 58, 20);
+            widgets.addSlot(outputs.getFirst(), 158, 57).recipeContext(this);
+            for (int index = 0; index < aspectAmounts.size() && index < 9; index++) {
+                addAspectGlyph(widgets, aspectAmounts.get(index), 5 + index * 20, 116);
             }
         }
+    }
+
+    private record AspectAmount(String aspectTag, int amount) {
     }
 }

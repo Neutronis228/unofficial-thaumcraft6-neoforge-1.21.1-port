@@ -18,6 +18,7 @@ public final class TCCreativeTabOrder {
         addWorldAndDecorativeBlocks(output);
         addDeviceAndCraftingBlocks(output);
         addLegacyItemSequence(output);
+        addLegacySpawnEggs(output);
     }
 
     private static void addWorldAndDecorativeBlocks(CreativeModeTab.Output output) {
@@ -419,6 +420,28 @@ public final class TCCreativeTabOrder {
         acceptVisible(output, TCItems.PHIAL_EXANIMIS.get());
         acceptVisible(output, TCItems.PHIAL_BESTIA.get());
         acceptVisible(output, TCItems.PHIAL_HUMANUS.get());
+    }
+
+    private static void addLegacySpawnEggs(CreativeModeTab.Output output) {
+        acceptVisible(output, TCItems.CULTIST_LEADER_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINTACLE_GIANT_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.BRAINY_ZOMBIE_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.GIANT_BRAINY_ZOMBIE_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.WISP_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.FIREBAT_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.PECH_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.MIND_SPIDER_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.ELDRITCH_GUARDIAN_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.CULTIST_KNIGHT_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.CULTIST_CLERIC_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.ELDRITCH_CRAB_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.INHABITED_ZOMBIE_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.THAUM_SLIME_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINT_CRAWLER_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINTACLE_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINT_SWARM_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINT_SEED_SPAWN_EGG.get());
+        acceptVisible(output, TCItems.TAINT_SEED_PRIME_SPAWN_EGG.get());
     }
 
     private static void acceptVisible(CreativeModeTab.Output output, ItemLike item) {

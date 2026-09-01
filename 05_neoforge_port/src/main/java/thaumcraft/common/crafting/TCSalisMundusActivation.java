@@ -548,9 +548,9 @@ public final class TCSalisMundusActivation {
 
     private enum Corner {
         NORTH_WEST(-1, -1, Direction.EAST),
-        NORTH_EAST(1, -1, Direction.SOUTH),
+        NORTH_EAST(1, -1, Direction.NORTH),
         SOUTH_EAST(1, 1, Direction.WEST),
-        SOUTH_WEST(-1, 1, Direction.NORTH);
+        SOUTH_WEST(-1, 1, Direction.SOUTH);
 
         private final int x;
         private final int z;
