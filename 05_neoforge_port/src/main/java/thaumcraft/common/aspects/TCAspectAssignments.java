@@ -9,6 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import thaumcraft.Thaumcraft;
 import thaumcraft.api.aspects.Aspect;
+import thaumcraft.api.aspects.AspectAssignmentRegistry;
 import thaumcraft.api.aspects.AspectList;
 
 public final class TCAspectAssignments {
@@ -76,6 +77,11 @@ public final class TCAspectAssignments {
     static AspectList getExplicitObjectAspects(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return null;
+        }
+
+        AspectList runtimeOverride = AspectAssignmentRegistry.getOverride(stack);
+        if (runtimeOverride != null) {
+            return runtimeOverride;
         }
 
         TCAspectAssignmentData data = activeData;
