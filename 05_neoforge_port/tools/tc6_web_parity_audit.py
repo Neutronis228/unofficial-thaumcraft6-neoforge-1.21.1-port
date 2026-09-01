@@ -2,85 +2,39 @@
 """
 Thaumcraft 6 -> NeoForge 1.21.1 parity audit helper.
 
-This helper compares the legacy TC6 source/resources with the current NeoForge port
-and writes two reports:
-
+Compares the legacy TC6 source/resources with the NeoForge port and writes:
   build/reports/tc6_web_parity_audit.md
   build/reports/tc6_web_parity_audit.json
 
-It intentionally does not modify game code. It is meant to be run before each
-web-port checkpoint so missing resources, missing recipes and unsafe vanilla
-placeholder recipes are visible before producing a test JAR.
+The script is intentionally read-only. It is a checkpoint tool for finding missing
+assets, missing recipe outputs and unsafe vanilla placeholder recipes before a JAR
+is produced from the web parity branch.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-
 SPECIAL_RECIPE_TOKENS = {
-    "arcane",
-    "alchemy",
-    "crucible",
-    "infusion",
-    "matrix",
-    "pedestal",
-    "essentia",
-    "jar",
-    "tube",
-    "buffer",
-    "filter",
-    "bellows",
-    "furnace",
-    "infernal",
-    "cluster",
-    "golem",
-    "seal",
-    "focus",
-    "foci",
-    "lens",
-    "gauntlet",
-    "wand",
-    "thaumometer",
-    "goggles",
-    "hungry",
-    "void",
-    "eldritch",
-    "cult",
-    "traveller",
-    "traveler",
-    "runic",
-    "charm",
-    "amulet",
-    "ring",
-    "belt",
-    "bauble",
-    "curio",
-    "mirror",
-    "lamp",
-    "thaumium",
-    "voidmetal",
-    "salismundus",
-    "salis_mundus",
+    "arcane", "alchemy", "crucible", "infusion", "matrix", "pedestal",
+    "essentia", "jar", "tube", "buffer", "filter", "bellows", "furnace",
+    "infernal", "cluster", "golem", "seal", "focus", "foci", "lens",
+    "gauntlet", "wand", "thaumometer", "goggles", "hungry", "void",
+    "eldritch", "cult", "traveller", "traveler", "runic", "charm",
+    "amulet", "ring", "belt", "bauble", "curio", "mirror", "lamp",
+    "thaumium", "voidmetal", "salismundus", "salis_mundus",
 }
 
 VANILLA_RECIPE_TYPES = {
-    "minecraft:crafting_shaped",
-    "minecraft:crafting_shapeless",
-    "minecraft:smelting",
-    "minecraft:blasting",
-    "minecraft:smoking",
-    "minecraft:campfire_cooking",
-    "minecraft:stonecutting",
-    "crafting_shaped",
-    "crafting_shapeless",
-    "smelting",
+    "minecraft:crafting_shaped", "minecraft:crafting_shapeless",
+    "minecraft:smelting", "minecraft:blasting", "minecraft:smoking",
+    "minecraft:campfire_cooking", "minecraft:stonecutting",
+    "crafting_shaped", "crafting_shapeless", "smelting",
 }
 
 RESOURCE_SUBDIRS = (
@@ -92,20 +46,9 @@ RESOURCE_SUBDIRS = (
     "assets/thaumcraft/textures",
 )
 
-TEXTURE_TOKENS_THAT_SHOULD_EXIST = (
-    "rift",
-    "portal",
-    "taint",
-    "cult",
-    "golem",
-    "traveller",
-    "traveler",
-    "hungry",
-    "essentia",
-    "jar",
-    "tube",
-    "focus",
-    "gauntlet",
+FOCUS_TEXTURE_TOKENS = (
+    "rift", "portal", "taint", "cult", "golem", "traveller", "traveler",
+    "hungry", "essentia", "jar", "tube", "focus", "gauntlet",
 )
 
 
@@ -126,37 +69,21 @@ class SuspiciousRecipe:
     reason: str
 
 
-def normalize_rel(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
-
-
-def is_json_file(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() == ".json"
-
-
 def load_json(path: Path) -> Any | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8-sig"))
-    except UnicodeDecodeError:
+    for encoding in ("utf-8-sig", "utf-8", "cp1251"):
         try:
-            return json.loads(path.read_text(encoding="cp1251"))
+            return json.loads(path.read_text(encoding=encoding))
         except Exception:
-            return None
-    except Exception:
-        return None
+            pass
+    return None
 
 
 def walk_files(root: Path) -> Iterable[Path]:
-    if not root.exists():
-        return []
-    return (p for p in root.rglob("*") if p.is_file())
+    return (p for p in root.rglob("*") if p.is_file()) if root.exists() else []
 
 
-def find_first_existing(candidates: Iterable[Path]) -> Path | None:
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
+def rel(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
 
 
 def discover_port_root(repo_root: Path, explicit: str | None) -> Path:
@@ -177,8 +104,8 @@ def discover_legacy_root(repo_root: Path, explicit: str | None) -> Path:
     preferred = repo_root / "Thaumcraft-6-Source-Code-master"
     if preferred.exists():
         return preferred.resolve()
-    for marker in repo_root.rglob("mcmod.info"):
-        candidate = marker.parent
+    for mcmod in repo_root.rglob("mcmod.info"):
+        candidate = mcmod.parent
         if (candidate / "src" / "main" / "resources" / "assets" / "thaumcraft").exists():
             return candidate.resolve()
     for assets in repo_root.rglob("assets/thaumcraft"):
@@ -188,33 +115,35 @@ def discover_legacy_root(repo_root: Path, explicit: str | None) -> Path:
 
 
 def resource_roots(project_root: Path) -> list[Path]:
-    roots = [project_root / "src" / "main" / "resources"]
-    generated = project_root / "src" / "generated" / "resources"
-    if generated.exists():
-        roots.append(generated)
-    return [r for r in roots if r.exists()]
+    candidates = [
+        project_root / "src" / "main" / "resources",
+        project_root / "src" / "generated" / "resources",
+    ]
+    return [p for p in candidates if p.exists()]
 
 
 def collect_resources(project_root: Path) -> dict[str, set[str]]:
-    out: dict[str, set[str]] = defaultdict(set)
+    found: dict[str, set[str]] = defaultdict(set)
     for root in resource_roots(project_root):
-        for sub in RESOURCE_SUBDIRS:
-            base = root / sub
-            for file_path in walk_files(base):
-                out[sub].add(normalize_rel(file_path, base))
-    return out
+        for subdir in RESOURCE_SUBDIRS:
+            base = root / subdir
+            for path in walk_files(base):
+                found[subdir].add(rel(path, base))
+    return found
 
 
-def collect_json_recipe_roots(project_root: Path) -> list[Path]:
+def recipe_roots(project_root: Path) -> list[Path]:
+    """Support both 1.12-style data/*/recipes and 1.21-style data/*/recipe."""
     roots: list[Path] = []
     for root in resource_roots(project_root):
         data_root = root / "data"
         if not data_root.exists():
             continue
         for namespace in data_root.iterdir():
-            recipes = namespace / "recipes"
-            if recipes.exists():
-                roots.append(recipes)
+            for dirname in ("recipes", "recipe"):
+                candidate = namespace / dirname
+                if candidate.exists():
+                    roots.append(candidate)
     return roots
 
 
@@ -225,9 +154,9 @@ def collect_ids(value: Any) -> set[str]:
             ids.add(value)
     elif isinstance(value, dict):
         for key in ("item", "id"):
-            candidate = value.get(key)
-            if isinstance(candidate, str) and ":" in candidate and not candidate.startswith("#"):
-                ids.add(candidate)
+            value_id = value.get(key)
+            if isinstance(value_id, str) and ":" in value_id and not value_id.startswith("#"):
+                ids.add(value_id)
         for nested in value.values():
             ids.update(collect_ids(nested))
     elif isinstance(value, list):
@@ -236,9 +165,7 @@ def collect_ids(value: Any) -> set[str]:
     return ids
 
 
-def recipe_outputs(data: Any) -> set[str]:
-    if not isinstance(data, dict):
-        return set()
+def recipe_outputs(data: dict[str, Any]) -> set[str]:
     outputs: set[str] = set()
     for key in ("result", "output", "results"):
         if key in data:
@@ -246,103 +173,89 @@ def recipe_outputs(data: Any) -> set[str]:
     return outputs
 
 
-def recipe_inputs(data: Any) -> set[str]:
-    if not isinstance(data, dict):
-        return set()
+def recipe_inputs(data: dict[str, Any]) -> set[str]:
     ignored = {"result", "output", "results", "conditions", "type", "group", "category", "show_notification"}
-    values = [value for key, value in data.items() if key not in ignored]
-    return collect_ids(values)
+    return collect_ids([value for key, value in data.items() if key not in ignored])
 
 
 def collect_recipes(project_root: Path) -> list[RecipeRecord]:
     records: list[RecipeRecord] = []
-    roots = collect_json_recipe_roots(project_root)
-    for recipes_root in roots:
-        for path in recipes_root.rglob("*.json"):
+    for root in recipe_roots(project_root):
+        for path in root.rglob("*.json"):
             data = load_json(path)
-            if not isinstance(data, dict):
-                continue
-            records.append(
-                RecipeRecord(
-                    path=path.relative_to(project_root).as_posix(),
-                    recipe_type=str(data.get("type", "minecraft:crafting_shaped")),
-                    outputs=tuple(sorted(recipe_outputs(data))),
-                    inputs=tuple(sorted(recipe_inputs(data))),
+            if isinstance(data, dict):
+                records.append(
+                    RecipeRecord(
+                        path=path.relative_to(project_root).as_posix(),
+                        recipe_type=str(data.get("type", "minecraft:crafting_shaped")),
+                        outputs=tuple(sorted(recipe_outputs(data))),
+                        inputs=tuple(sorted(recipe_inputs(data))),
+                    )
                 )
-            )
     return records
 
 
-def collect_declared_items_from_models(project_root: Path) -> set[str]:
-    items: set[str] = set()
+def item_model_ids(project_root: Path) -> set[str]:
+    ids: set[str] = set()
     for root in resource_roots(project_root):
-        item_models = root / "assets" / "thaumcraft" / "models" / "item"
-        if not item_models.exists():
-            continue
-        for path in item_models.rglob("*.json"):
-            rel = normalize_rel(path, item_models)[:-5]
-            items.add("thaumcraft:" + rel)
-    return items
+        base = root / "assets" / "thaumcraft" / "models" / "item"
+        for path in walk_files(base):
+            if path.suffix == ".json":
+                ids.add("thaumcraft:" + rel(path, base)[:-5])
+    return ids
 
 
-def collect_declared_blocks_from_blockstates(project_root: Path) -> set[str]:
-    blocks: set[str] = set()
+def blockstate_ids(project_root: Path) -> set[str]:
+    ids: set[str] = set()
     for root in resource_roots(project_root):
-        blockstates = root / "assets" / "thaumcraft" / "blockstates"
-        if not blockstates.exists():
-            continue
-        for path in blockstates.rglob("*.json"):
-            rel = normalize_rel(path, blockstates)[:-5]
-            blocks.add("thaumcraft:" + rel)
-    return blocks
+        base = root / "assets" / "thaumcraft" / "blockstates"
+        for path in walk_files(base):
+            if path.suffix == ".json":
+                ids.add("thaumcraft:" + rel(path, base)[:-5])
+    return ids
 
 
-def tokens_in_id(identifier: str) -> tuple[str, ...]:
-    normalized = identifier.lower().replace("-", "_").replace("/", "_")
-    return tuple(sorted(token for token in SPECIAL_RECIPE_TOKENS if token in normalized))
+def matching_tokens(text: str) -> tuple[str, ...]:
+    normalized = text.lower().replace("-", "_").replace("/", "_")
+    return tuple(sorted(t for t in SPECIAL_RECIPE_TOKENS if t in normalized))
 
 
-def find_suspicious_vanilla_recipes(records: Iterable[RecipeRecord]) -> list[SuspiciousRecipe]:
-    suspicious: list[SuspiciousRecipe] = []
+def suspicious_vanilla_recipes(records: Iterable[RecipeRecord]) -> list[SuspiciousRecipe]:
+    out: list[SuspiciousRecipe] = []
     for record in records:
         if record.recipe_type not in VANILLA_RECIPE_TYPES:
             continue
         for output in record.outputs:
             if not output.startswith("thaumcraft:"):
                 continue
-            matched = tokens_in_id(output + " " + record.path)
-            if not matched:
-                continue
-            suspicious.append(
-                SuspiciousRecipe(
-                    path=record.path,
-                    recipe_type=record.recipe_type,
-                    output=output,
-                    matched_tokens=matched,
-                    reason="Thaumcraft special mechanic output is still exposed through a vanilla recipe type.",
+            tokens = matching_tokens(output + " " + record.path)
+            if tokens:
+                out.append(
+                    SuspiciousRecipe(
+                        path=record.path,
+                        recipe_type=record.recipe_type,
+                        output=output,
+                        matched_tokens=tokens,
+                        reason="Thaumcraft special mechanic output is still exposed through a vanilla recipe type.",
+                    )
                 )
-            )
-    return suspicious
+    return out
 
 
-def diff_sets(legacy: dict[str, set[str]], port: dict[str, set[str]]) -> dict[str, list[str]]:
-    missing: dict[str, list[str]] = {}
-    for subdir in RESOURCE_SUBDIRS:
-        missing[subdir] = sorted(legacy.get(subdir, set()) - port.get(subdir, set()))
-    return missing
+def diff_resources(legacy: dict[str, set[str]], port: dict[str, set[str]]) -> dict[str, list[str]]:
+    return {subdir: sorted(legacy.get(subdir, set()) - port.get(subdir, set())) for subdir in RESOURCE_SUBDIRS}
 
 
-def summarize_focus_textures(missing_textures: list[str]) -> dict[str, list[str]]:
-    focus: dict[str, list[str]] = {}
-    for token in TEXTURE_TOKENS_THAT_SHOULD_EXIST:
-        matches = [p for p in missing_textures if token in p.lower()]
-        if matches:
-            focus[token] = matches[:50]
-    return focus
+def first(values: Iterable[str], limit: int) -> list[str]:
+    return list(values)[:limit]
 
 
-def first_n(values: Iterable[str], n: int = 80) -> list[str]:
-    return list(values)[:n]
+def focused_textures(missing_textures: list[str]) -> dict[str, list[str]]:
+    return {
+        token: [p for p in missing_textures if token in p.lower()][:50]
+        for token in FOCUS_TEXTURE_TOKENS
+        if any(token in p.lower() for p in missing_textures)
+    }
 
 
 def write_reports(
@@ -365,69 +278,57 @@ def write_reports(
         "legacy_root": str(legacy_root),
         "missing_resources": missing_resources,
         "missing_recipe_outputs": missing_recipe_outputs,
-        "suspicious_vanilla_recipes": [asdict(item) for item in suspicious],
-        "legacy_model_items_count": len(legacy_items),
-        "port_model_items_count": len(port_items),
-        "missing_model_items": sorted(legacy_items - port_items),
-        "legacy_blockstates_count": len(legacy_blocks),
-        "port_blockstates_count": len(port_blocks),
+        "suspicious_vanilla_recipes": [asdict(x) for x in suspicious],
+        "legacy_item_model_count": len(legacy_items),
+        "port_item_model_count": len(port_items),
+        "missing_item_models": sorted(legacy_items - port_items),
+        "legacy_blockstate_count": len(legacy_blocks),
+        "port_blockstate_count": len(port_blocks),
         "missing_blockstates": sorted(legacy_blocks - port_blocks),
-        "focused_missing_textures": summarize_focus_textures(missing_resources.get("assets/thaumcraft/textures", [])),
+        "focused_missing_textures": focused_textures(missing_resources.get("assets/thaumcraft/textures", [])),
     }
     (out_dir / "tc6_web_parity_audit.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    lines: list[str] = []
-    lines.append("# TC6 Web Parity Audit Report")
-    lines.append("")
-    lines.append(f"Port root: `{port_root}`")
-    lines.append(f"Legacy root: `{legacy_root}`")
-    lines.append("")
-    lines.append("## Summary")
-    lines.append("")
-    lines.append(f"- Legacy item model IDs: `{len(legacy_items)}`")
-    lines.append(f"- Port item model IDs: `{len(port_items)}`")
-    lines.append(f"- Missing item model IDs: `{len(legacy_items - port_items)}`")
-    lines.append(f"- Legacy blockstate IDs: `{len(legacy_blocks)}`")
-    lines.append(f"- Port blockstate IDs: `{len(port_blocks)}`")
-    lines.append(f"- Missing blockstate IDs: `{len(legacy_blocks - port_blocks)}`")
-    lines.append(f"- Missing legacy recipe outputs: `{len(missing_recipe_outputs)}`")
-    lines.append(f"- Suspicious vanilla placeholder recipes: `{len(suspicious)}`")
-    lines.append("")
+    lines = [
+        "# TC6 Web Parity Audit Report", "",
+        f"Port root: `{port_root}`",
+        f"Legacy root: `{legacy_root}`", "",
+        "## Summary", "",
+        f"- Legacy item model IDs: `{len(legacy_items)}`",
+        f"- Port item model IDs: `{len(port_items)}`",
+        f"- Missing item model IDs: `{len(legacy_items - port_items)}`",
+        f"- Legacy blockstate IDs: `{len(legacy_blocks)}`",
+        f"- Port blockstate IDs: `{len(port_blocks)}`",
+        f"- Missing blockstate IDs: `{len(legacy_blocks - port_blocks)}`",
+        f"- Missing legacy recipe outputs: `{len(missing_recipe_outputs)}`",
+        f"- Suspicious vanilla placeholder recipes: `{len(suspicious)}`", "",
+        "## Missing resources by resource group", "",
+    ]
 
-    lines.append("## Missing resources by resource group")
-    lines.append("")
     for subdir, values in missing_resources.items():
-        lines.append(f"### `{subdir}` — missing `{len(values)}`")
-        for item in first_n(values):
-            lines.append(f"- `{item}`")
+        lines += [f"### `{subdir}` — missing `{len(values)}`"]
+        lines += [f"- `{item}`" for item in first(values, 80)]
         if len(values) > 80:
             lines.append(f"- ... `{len(values) - 80}` more")
         lines.append("")
 
-    lines.append("## Missing legacy recipe outputs")
-    lines.append("")
-    for item in first_n(missing_recipe_outputs, 120):
-        lines.append(f"- `{item}`")
+    lines += ["## Missing legacy recipe outputs", ""]
+    lines += [f"- `{item}`" for item in first(missing_recipe_outputs, 120)]
     if len(missing_recipe_outputs) > 120:
         lines.append(f"- ... `{len(missing_recipe_outputs) - 120}` more")
     lines.append("")
 
-    lines.append("## Suspicious vanilla placeholder recipes")
-    lines.append("")
+    lines += ["## Suspicious vanilla placeholder recipes", ""]
     for item in suspicious[:160]:
-        token_text = ", ".join(item.matched_tokens)
-        lines.append(f"- `{item.path}` -> `{item.output}` via `{item.recipe_type}`; tokens: `{token_text}`")
+        lines.append(f"- `{item.path}` -> `{item.output}` via `{item.recipe_type}`; tokens: `{', '.join(item.matched_tokens)}`")
     if len(suspicious) > 160:
         lines.append(f"- ... `{len(suspicious) - 160}` more")
     lines.append("")
 
-    lines.append("## Focused missing texture groups")
-    lines.append("")
-    focused = summarize_focus_textures(missing_resources.get("assets/thaumcraft/textures", []))
-    for token, values in focused.items():
+    lines += ["## Focused missing texture groups", ""]
+    for token, values in focused_textures(missing_resources.get("assets/thaumcraft/textures", [])).items():
         lines.append(f"### `{token}`")
-        for item in values:
-            lines.append(f"- `{item}`")
+        lines += [f"- `{item}`" for item in values]
         lines.append("")
 
     (out_dir / "tc6_web_parity_audit.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -435,10 +336,10 @@ def write_reports(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit TC6 legacy parity against the NeoForge port.")
-    parser.add_argument("--repo-root", default=".", help="Repository root. Default: current directory.")
-    parser.add_argument("--port-root", default=None, help="NeoForge port root. Default: auto-discover 05_neoforge_port.")
-    parser.add_argument("--legacy-root", default=None, help="Legacy TC6 source root. Default: auto-discover Thaumcraft-6-Source-Code-master.")
-    parser.add_argument("--out-dir", default=None, help="Report output directory. Default: <port-root>/build/reports.")
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--port-root")
+    parser.add_argument("--legacy-root")
+    parser.add_argument("--out-dir")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -446,22 +347,12 @@ def main() -> int:
     legacy_root = discover_legacy_root(repo_root, args.legacy_root)
     out_dir = Path(args.out_dir).resolve() if args.out_dir else port_root / "build" / "reports"
 
-    legacy_resources = collect_resources(legacy_root)
-    port_resources = collect_resources(port_root)
-    missing_resources = diff_sets(legacy_resources, port_resources)
-
+    missing_resources = diff_resources(collect_resources(legacy_root), collect_resources(port_root))
     legacy_recipes = collect_recipes(legacy_root)
     port_recipes = collect_recipes(port_root)
-    legacy_outputs = {output for record in legacy_recipes for output in record.outputs if output.startswith("thaumcraft:")}
-    port_outputs = {output for record in port_recipes for output in record.outputs if output.startswith("thaumcraft:")}
-    missing_recipe_outputs = sorted(legacy_outputs - port_outputs)
-
-    suspicious = find_suspicious_vanilla_recipes(port_recipes)
-
-    legacy_items = collect_declared_items_from_models(legacy_root)
-    port_items = collect_declared_items_from_models(port_root)
-    legacy_blocks = collect_declared_blocks_from_blockstates(legacy_root)
-    port_blocks = collect_declared_blocks_from_blockstates(port_root)
+    legacy_outputs = {o for r in legacy_recipes for o in r.outputs if o.startswith("thaumcraft:")}
+    port_outputs = {o for r in port_recipes for o in r.outputs if o.startswith("thaumcraft:")}
+    suspicious = suspicious_vanilla_recipes(port_recipes)
 
     write_reports(
         out_dir=out_dir,
@@ -469,18 +360,18 @@ def main() -> int:
         port_root=port_root,
         legacy_root=legacy_root,
         missing_resources=missing_resources,
-        missing_recipe_outputs=missing_recipe_outputs,
+        missing_recipe_outputs=sorted(legacy_outputs - port_outputs),
         suspicious=suspicious,
-        legacy_items=legacy_items,
-        port_items=port_items,
-        legacy_blocks=legacy_blocks,
-        port_blocks=port_blocks,
+        legacy_items=item_model_ids(legacy_root),
+        port_items=item_model_ids(port_root),
+        legacy_blocks=blockstate_ids(legacy_root),
+        port_blocks=blockstate_ids(port_root),
     )
 
     print(f"Wrote {out_dir / 'tc6_web_parity_audit.md'}")
     print(f"Wrote {out_dir / 'tc6_web_parity_audit.json'}")
     print(f"Suspicious vanilla placeholder recipes: {len(suspicious)}")
-    print(f"Missing legacy recipe outputs: {len(missing_recipe_outputs)}")
+    print(f"Missing legacy recipe outputs: {len(legacy_outputs - port_outputs)}")
     return 0
 
 
