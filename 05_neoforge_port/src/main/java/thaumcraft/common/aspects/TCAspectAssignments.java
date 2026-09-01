@@ -21,7 +21,7 @@ public final class TCAspectAssignments {
         }
         TCGeneratedAspectCache.clear();
         activeData = TCAspectAssignmentParser.loadBundledDefaults();
-        TCAspectParityValidator.validate();
+        TCAspectParityValidator.validate(false);
         Thaumcraft.LOGGER.info(
                 "Thaumcraft aspect bootstrap initialized from bundled data: {} aspects, {} exact object assignments, {} tag assignments, {} complex exact assignments, {} complex tag assignments, parity validation passed.",
                 Aspect.aspects.size(),
@@ -39,7 +39,7 @@ public final class TCAspectAssignments {
     static void reload(TCAspectAssignmentData data) {
         TCGeneratedAspectCache.clear();
         activeData = data;
-        TCAspectParityValidator.validate();
+        TCAspectParityValidator.validate(true);
         Thaumcraft.LOGGER.info(
                 "Thaumcraft aspect assignments reloaded: {} exact object assignments, {} tag assignments, {} complex exact assignments, {} complex tag assignments, parity validation passed.",
                 activeData.directObjectTags().size(),
