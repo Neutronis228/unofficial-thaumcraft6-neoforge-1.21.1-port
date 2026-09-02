@@ -5,7 +5,10 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import thaumcraft.Thaumcraft;
 import thaumcraft.common.items.TCRechargeHelper;
 import thaumcraft.common.registry.TCItems;
 
@@ -17,6 +20,7 @@ import thaumcraft.common.registry.TCItems;
  * looks for the first rechargeable item, preferring the hotbar before the rest
  * of the inventory and worn equipment, and restores one charge.
  */
+@EventBusSubscriber(modid = Thaumcraft.MODID)
 public final class TCBaubleEvents {
     private static final int CRAFTED_VIS_AMULET_INTERVAL_TICKS = 5;
     private static final int HOTBAR_SIZE = 9;
@@ -24,6 +28,7 @@ public final class TCBaubleEvents {
     private TCBaubleEvents() {
     }
 
+    @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
         if (player.level().isClientSide || player.tickCount % CRAFTED_VIS_AMULET_INTERVAL_TICKS != 0) {
