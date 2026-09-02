@@ -2,6 +2,7 @@ package thaumcraft.common.items.curios;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
@@ -10,6 +11,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -127,7 +129,7 @@ public final class TCBaubleEvents {
         if (rechargeFrom(inventory.items, source, 0, hotbarEnd)) {
             return true;
         }
-        if (rechargeFrom(inventory.items, source, hotbarEnd, inventory.items.size())) {
+        if (rechargeFromCurios(player, source)) {
             return true;
         }
         if (rechargeFrom(inventory.armor, source, 0, inventory.armor.size())) {
@@ -152,6 +154,11 @@ public final class TCBaubleEvents {
     }
 
     private static ItemStack firstMatching(Player player, Item item) {
+        ItemStack curiosStack = firstMatchingCurios(player, item);
+        if (!curiosStack.isEmpty()) {
+            return curiosStack;
+        }
+
         Inventory inventory = player.getInventory();
         ItemStack stack = firstMatching(inventory.items, item);
         if (!stack.isEmpty()) {
@@ -171,5 +178,67 @@ public final class TCBaubleEvents {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    /**
+     * Optional Curios bridge without a hard compile dependency. The port keeps
+     * Curios slot tags as data, so this reflection layer makes Cloud Ring and
+     * Vis Amulet behaviour work when Curios is present, while still allowing the
+     * mod to load by itself during early parity tests.
+     */
+    private static Optional<?> curiosInventory(Player player) {
+        try {
+            Class<?> curiosApi = Class.forName("top.theillusivec4.curios.api.CuriosApi");
+            Object optional = curiosApi.getMethod("getCuriosInventory", LivingEntity.class).invoke(null, player);
+            if (optional instanceof Optional<?> result) {
+                return result;
+            }
+        } catch (ReflectiveOperationException | ClassCastException | LinkageError ignored) {
+            // Curios is optional for this alpha port.
+        }
+        return Optional.empty();
+    }
+
+    private static ItemStack firstMatchingCurios(Player player, Item item) {
+        Optional<?> handler = curiosInventory(player);
+        if (handler.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        try {
+            Object resultOptional = handler.get().getClass().getMethod("findFirstCurio", Item.class).invoke(handler.get(), item);
+            if (!(resultOptional instanceof Optional<?> result) || result.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+
+            Object stack = result.get().getClass().getMethod("stack").invoke(result.get());
+            return stack instanceof ItemStack itemStack ? itemStack : ItemStack.EMPTY;
+        } catch (ReflectiveOperationException | ClassCastException | LinkageError ignored) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    private static boolean rechargeFromCurios(Player player, ItemStack source) {
+        Optional<?> handler = curiosInventory(player);
+        if (handler.isEmpty()) {
+            return false;
+        }
+
+        try {
+            Object equipped = handler.get().getClass().getMethod("getEquippedCurios").invoke(handler.get());
+            int slots = (Integer) equipped.getClass().getMethod("getSlots").invoke(equipped);
+            for (int slot = 0; slot < slots; slot++) {
+                Object stack = equipped.getClass().getMethod("getStackInSlot", int.class).invoke(equipped, slot);
+                if (stack instanceof ItemStack itemStack
+                        && !itemStack.isEmpty()
+                        && itemStack != source
+                        && TCRechargeHelper.recharge(itemStack, 1) > 0) {
+                    return true;
+                }
+            }
+        } catch (ReflectiveOperationException | ClassCastException | LinkageError ignored) {
+            return false;
+        }
+        return false;
     }
 }
